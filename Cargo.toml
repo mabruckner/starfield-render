@@ -1,0 +1,11 @@
+[package]
+name = "starfield-render"
+version = "0.1.0"
+authors = ["Mitchell Bruckner <mbruckner807@gmail.com>"]
+
+[[bin]]
+name = "stars"
+
+[dependencies]
+nalgebra="0.8.2"
+rand="0.3.*"
