@@ -26,8 +26,8 @@ pub fn to_256_color(p: &Pixel, x: usize, y: usize) -> usize
 {
     0xE8 + match p {
         &Pixel::Grayscale(col) => {
-            let val = (col * 24.0).max(0.0).min(23.99);
-            if dither(val - val.floor(), x, y) {
+            let val = (col * 24.25).max(0.0).min(24.24);
+            if dither_2(((val - val.floor()) * 4.0) as usize, x, y) {
                 val as usize + 1
             } else {
                 val as usize
@@ -191,7 +191,7 @@ fn get_interp(target: Vector2<f32>, a: Vector2<f32>, b: Vector2<f32>, c: Vector2
 }
 
 pub fn process<V,U,T,E,F>(buf: &mut Buffer<T>, uniform: &U, varying: &Vec<V>, patches: &Vec<Patch>, vertex: E, fragment: F) -> ()
-    where V:Varying, E: Fn(&U,&V) -> Vector4<f32>, F: Fn(&U,&V,&Vector4<f32>) -> Option<(T, f32)>
+    where V:Varying, E: Fn(&U,&V) -> Vector4<f32>, F: Fn(&U,&V) -> Option<T>
 {
     let mut varied = Vec::new();
     for point in varying {
@@ -202,8 +202,8 @@ pub fn process<V,U,T,E,F>(buf: &mut Buffer<T>, uniform: &U, varying: &Vec<V>, pa
             &Patch::Point(index) => {
                 let pos = varied[index];
                 if let Some((x, y)) = buf.center_to_xy((pos.x, pos.y)) {
-                    if let Some(val) = fragment(uniform, &varying[index], &varied[index]) {
-                        buf.apply(x, y, val);
+                    if let Some(val) = fragment(uniform, &varying[index]) {
+                        buf.apply(x, y, (val, varied[index].z));
                     }
                 }
             },
@@ -214,8 +214,8 @@ pub fn process<V,U,T,E,F>(buf: &mut Buffer<T>, uniform: &U, varying: &Vec<V>, pa
                     for (x, y, d) in line_it((ax as i32,ay as i32),(bx as i32,by as i32)) {
                         //println!("{} {}", x, y);
                         let loc = Vector4::combine(&vec![(d, &varied[i_b]), (1.0 - d, &varied[i_a])]);
-                        if let Some(val) = fragment(uniform, &V::combine(&vec![(d,&varying[i_b]),(1.0 - d, &varying[i_a])]), &loc) {
-                            buf.apply(x as usize, y as usize, val);
+                        if let Some(val) = fragment(uniform, &V::combine(&vec![(d,&varying[i_b]),(1.0 - d, &varying[i_a])])) {
+                            buf.apply(x as usize, y as usize, (val, loc.z));
                         }
                     }
                 }
@@ -249,8 +249,8 @@ pub fn process<V,U,T,E,F>(buf: &mut Buffer<T>, uniform: &U, varying: &Vec<V>, pa
                                 let (fa, fb, fc) = get_interp(Vector2::new(x as f32, y as f32), pos_a, pos_b, pos_c);
                                 let combined = V::combine(&vec![(fa, &varying[i_a]), (fb, &varying[i_b]), (fc, &varying[i_c])]);
                                 let loc = Vector4::combine(&vec![(fa, &varied[i_a]), (fb, &varied[i_b]), (fc, &varied[i_c])]);
-                                if let Some(val) = fragment(uniform, &combined, &loc) {
-                                    buf.apply(x as usize, y as usize, val);
+                                if let Some(val) = fragment(uniform, &combined) {
+                                    buf.apply(x as usize, y as usize, (val, loc.z));
                                 }
                             }
                         }
@@ -274,8 +274,8 @@ pub fn process<V,U,T,E,F>(buf: &mut Buffer<T>, uniform: &U, varying: &Vec<V>, pa
                                 let (fr, fb, ft) = get_interp(Vector2::new(x as f32, y as f32), pos_r, pos_bot, pos_top);
                                 let combined = V::combine(&vec![(fr, &varying[i_r]), (fb, &varying[i_bot]), (ft, &varying[i_top])]);
                                 let loc = Vector4::combine(&vec![(fr, &varied[i_r]), (fb, &varied[i_bot]), (ft, &varied[i_top])]);
-                                if let Some(val) = fragment(uniform, &combined, &loc) {
-                                    buf.apply(x as usize, y as usize, val);
+                                if let Some(val) = fragment(uniform, &combined) {
+                                    buf.apply(x as usize, y as usize, (val, loc.z));
                                 }
                             }
                         }

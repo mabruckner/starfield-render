@@ -36,10 +36,10 @@ fn main()
         Vector4::new(v.x, v.y, 0.0, 0.0)
     };
 
-    let fragment = |u: &f32, v: &Vector2<f32>, l: &Vector4<f32>| {
+    let fragment = |u: &f32, v: &Vector2<f32>| {
         let v = v.x.hypot(v.y);
         if v < 1.0 {
-            Some((sf::Pixel::Grayscale((0.5+u.cos()/2.0)*(1.0 - v)), 0.0))
+            Some(sf::Pixel::Grayscale((0.5+u.cos()/2.0)*(1.0 - v)))
         } else {
             None
         }

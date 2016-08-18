@@ -57,24 +57,14 @@ fn main() -> ()
         Vector4::new(v.x * u.cos() + v.z* u.sin(), v.y, v.z * u.cos() - v.x* u.sin(), 1.0)
     };
 
-    let fragment = |u: &f32, v: &Vector4<f32>, l: &Vector4<f32>| {
-        Some(('X', l.z))
+    let fragment = |u: &f32, v: &Vector4<f32>| {
+        Some('X')
     };
-    let fragment_dots = |u: &f32, v: &Vector4<f32>, l: &Vector4<f32>| {
-        Some((':', l.z))
+    let fragment_dots = |u: &f32, v: &Vector4<f32>| {
+        Some(':')
     };
-    let fragment_points = |u: &f32, v: &Vector4<f32>, l: &Vector4<f32>| {
-        if l.z >= 0.0 {
-            Some((((l.z*10.0).floor() as usize + '0' as usize) as u8 as char, l.z))
-        }else {
-            Some(('?', l.z))
-        }
-        //Some((':', v.z))
-/*        if v.w < 0.25 || v.w > 0.75 {
-            Some(('=', v.z))
-        } else {
-            Some(('.', v.z))
-        }*/
+    let fragment_points = |u: &f32, v: &Vector4<f32>| {
+        Some('.')
     };
 
     let mut val = 0.0;
