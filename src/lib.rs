@@ -6,10 +6,35 @@ use nalgebra::{Vector4, Vector2, Norm, dot};
 // rendering. I think there should be three seperate layers: a raster layer at 2x resolution, a
 // vector layer at 1x resloution, and a text layer at 1x resolution. all should have depth.
 
-enum Pixel
+pub enum Pixel
 {
     Color(f32, f32, f32),
     Grayscale(f32)
+}
+
+fn dither_2(val: usize, x: usize, y: usize) -> bool
+{
+    val > (2*y + 3*(x%2)) % 4
+}
+
+fn dither(value: f32, x: usize, y: usize) -> bool
+{
+    dither_2((value * 5.0).max(0.0).min(4.0) as usize, x, y)
+}
+
+pub fn to_256_color(p: &Pixel, x: usize, y: usize) -> usize
+{
+    0xE8 + match p {
+        &Pixel::Grayscale(col) => {
+            let val = (col * 24.0).max(0.0).min(23.99);
+            if dither(val - val.floor(), x, y) {
+                val as usize + 1
+            } else {
+                val as usize
+            }
+        },
+        _ => panic!("unimplimented")
+    }
 }
 
 pub trait Varying

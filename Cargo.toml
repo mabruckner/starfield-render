@@ -6,6 +6,9 @@ authors = ["Mitchell Bruckner <mbruckner807@gmail.com>"]
 [[bin]]
 name = "stars"
 
+[[bin]]
+name = "gradient"
+
 [dependencies]
 nalgebra="0.8.2"
 rand="0.3.*"
