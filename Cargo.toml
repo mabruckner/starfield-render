@@ -9,6 +9,9 @@ name = "stars"
 [[bin]]
 name = "gradient"
 
+[[bin]]
+name = "pertest"
+
 [dependencies]
 nalgebra="0.8.2"
 rand="0.3.*"

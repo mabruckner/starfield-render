@@ -84,7 +84,7 @@ impl <T> Buffer<T>
     {
         self.width * y + x
     }
-    fn apply(&mut self, x: usize, y:usize , (val, depth): (T, f32)) -> ()
+    pub fn apply(&mut self, x: usize, y:usize , (val, depth): (T, f32)) -> ()
     {
         let index = self.get_index(x, y);
         if let Some((_, d)) = self.buf[index] {
@@ -285,6 +285,3 @@ pub fn process<V,U,T,E,F>(buf: &mut Buffer<T>, uniform: &U, varying: &Vec<V>, pa
         }
     }
 }
-
-
-// vertex \
