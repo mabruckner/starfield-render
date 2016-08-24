@@ -7,7 +7,9 @@ use nalgebra::{
     Vector4,
     Vector3,
     Vector2,
-    dot
+    dot,
+    Rotate,
+    Rotation3
 };
 
 fn print_mat(buf: &sf::Buffer<sf::Pixel>)
@@ -30,18 +32,19 @@ fn main()
     let (width, height) = (100, 50);
 
     let verts = vec![
-        Vector4::new(-1.0, 1.0, 2.0, 2.0),
-        Vector4::new(-1.0, 0.0, 2.0, 2.0),
-        Vector4::new(-1.0, 0.0, 3.0, 3.0)];
-
-    let dat = vec![
+        Vector2::new(-1.0, -1.0),
         Vector2::new(1.0, -1.0),
-        Vector2::new(-2.0, 1.0),
+        Vector2::new(-1.0, 1.0),
         Vector2::new(1.0, 1.0)];
     
-    let patches = vec![sf::Patch::Tri(0,1,2)];
+    let patches = vec![sf::Patch::Tri(0,1,2), sf::Patch::Tri(3,2,1), sf::Patch::Tri(2,1,0), sf::Patch::Tri(1,2,3)];
 
     let mut buffer = sf::Buffer::new(width,height);
+
+    let vertex = |u: &f32, v: &Vector2<f32>| {
+        let p = Rotation3::new(Vector3::new(0.0, *u, 0.0)).rotate(&Vector3::new(v.x, v.y, 0.0));
+        (Vector4::new(p.x, p.y, p.z, p.z+1.5), v.clone())
+    };
 
     let fragment = |u: &f32, v: &Vector2<f32>| {
         let v = v.x.hypot(v.y);
@@ -52,7 +55,13 @@ fn main()
         }
     };
 
-    buffer.clear();
-    sf::render(&mut buffer, &0.0, &verts, &dat, &patches, &fragment);
-    print_mat(&buffer);
+    let mut val = 0.0;
+
+    loop {
+        val += 0.01;
+        buffer.clear();
+        sf::process(&mut buffer, &val, &verts, &patches, &vertex, &fragment);
+        print_mat(&buffer);
+        println!("\x1B[{}A", height+1);
+    }
 }

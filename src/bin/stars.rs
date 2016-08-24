@@ -54,16 +54,16 @@ fn main() -> ()
     let mut buffer = sf::Buffer::new(width, height);
 
     let vertex = |u: &f32, v: &Vector4<f32>| {
-        Vector4::new(v.x * u.cos() + v.z* u.sin(), v.y, v.z * u.cos() - v.x* u.sin(), 1.0)
+        (Vector4::new(v.x * u.cos() + v.z* u.sin(), v.y, v.z * u.cos() - v.x* u.sin(), 1.0), 0.0)
     };
 
-    let fragment = |u: &f32, v: &Vector4<f32>| {
+    let fragment = |u: &f32, v: &f32| {
         Some('X')
     };
-    let fragment_dots = |u: &f32, v: &Vector4<f32>| {
+    let fragment_dots = |u: &f32, v: &f32| {
         Some(':')
     };
-    let fragment_points = |u: &f32, v: &Vector4<f32>| {
+    let fragment_points = |u: &f32, v: &f32| {
         Some('.')
     };
 

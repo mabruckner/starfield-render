@@ -187,14 +187,17 @@ fn get_interp(target: Vector3<f32>, a: Vector3<f32>, b: Vector3<f32>, c: Vector3
     (out[0], out[1], out[2])
 }
 
-pub fn process<V,U,T,E,F>(buf: &mut Buffer<T>, uniform: &U, varying: &Vec<V>, patches: &Vec<Patch>, vertex: E, fragment: F) -> ()
-    where V:Varying, E: Fn(&U,&V) -> Vector4<f32>, F: Fn(&U,&V) -> Option<T>
+pub fn process<V,I,U,T,E,F>(buf: &mut Buffer<T>, uniform: &U, varying: &Vec<V>, patches: &Vec<Patch>, vertex: E, fragment: F) -> ()
+    where I:Varying, E: Fn(&U,&V) -> (Vector4<f32>, I), F: Fn(&U,&I) -> Option<T>
 {
     let mut varied = Vec::new();
+    let mut pos = Vec::new();
     for point in varying {
-        varied.push(vertex(uniform, point));
+        let (p, v) = vertex(uniform, point);
+        varied.push(v);
+        pos.push(p);
     }
-    render(buf, uniform, &varied, varying, patches, fragment) 
+    render(buf, uniform, &pos, &varied, patches, fragment) 
 }
 
 pub fn render<V,U,T,F>(buf: &mut Buffer<T>, uniform: &U, positions: &Vec<Vector4<f32>>, varying: &Vec<V>, patches: &Vec<Patch>, fragment: F) -> ()

@@ -1,6 +1,6 @@
 [package]
 name = "starfield-render"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Mitchell Bruckner <mbruckner807@gmail.com>"]
 
 [[bin]]
@@ -10,7 +10,7 @@ name = "stars"
 name = "gradient"
 
 [[bin]]
-name = "pertest"
+name = "perspective"
 
 [dependencies]
 nalgebra="0.8.2"

@@ -33,7 +33,7 @@ fn main()
     let mut buffer = sf::Buffer::new(width,height);
 
     let vertex = |u: &f32, v: &Vector2<f32>| {
-        Vector4::new(v.x, v.y, 0.0, 1.0)
+        (Vector4::new(v.x, v.y, 0.0, 1.0), v.clone())
     };
 
     let fragment = |u: &f32, v: &Vector2<f32>| {
