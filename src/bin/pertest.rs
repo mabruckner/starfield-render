@@ -29,16 +29,18 @@ fn main()
 
     let (width, height) = (100, 50);
 
-    let verts = [
-        Vector4::new(-1.0, 1.0, 0.0, 1.0),
-        Vector4::new(-1.0, 0.0, 0.0, 1.0),
-        Vector4::new(-1.0, 0.0, 0.0, 2.0)];
+    let verts = vec![
+        Vector4::new(-1.0, 1.0, 2.0, 2.0),
+        Vector4::new(-1.0, 0.0, 2.0, 2.0),
+        Vector4::new(-1.0, 0.0, 3.0, 3.0)];
 
-    let varied = [
-        &Vector2::new(-1.0, -1.0),
-        &Vector2::new(1.0, -1.0),
-        &Vector2::new(-1.0, 1.0)];
+    let dat = vec![
+        Vector2::new(1.0, -1.0),
+        Vector2::new(-2.0, 1.0),
+        Vector2::new(1.0, 1.0)];
     
+    let patches = vec![sf::Patch::Tri(0,1,2)];
+
     let mut buffer = sf::Buffer::new(width,height);
 
     let fragment = |u: &f32, v: &Vector2<f32>| {
@@ -51,6 +53,6 @@ fn main()
     };
 
     buffer.clear();
-    sf::render_tri(&mut buffer, &0.0, &verts, &varied, &fragment);
+    sf::render(&mut buffer, &0.0, &verts, &dat, &patches, &fragment);
     print_mat(&buffer);
 }

@@ -194,23 +194,29 @@ pub fn process<V,U,T,E,F>(buf: &mut Buffer<T>, uniform: &U, varying: &Vec<V>, pa
     for point in varying {
         varied.push(vertex(uniform, point));
     }
+    render(buf, uniform, &varied, varying, patches, fragment) 
+}
+
+pub fn render<V,U,T,F>(buf: &mut Buffer<T>, uniform: &U, positions: &Vec<Vector4<f32>>, varying: &Vec<V>, patches: &Vec<Patch>, fragment: F) -> ()
+    where V:Varying, F: Fn(&U, &V) -> Option<T>
+{
     for patch in patches {
         match patch {
             &Patch::Point(index) => {
-                let pos = varied[index];
+                let pos = positions[index];
                 if let Some((x, y)) = buf.center_to_xy((pos.x, pos.y)) {
                     if let Some(val) = fragment(uniform, &varying[index]) {
-                        buf.apply(x, y, (val, varied[index].z));
+                        buf.apply(x, y, (val, positions[index].z));
                     }
                 }
             },
             &Patch::Line(i_a, i_b) => {
-                let pos_a = varied[i_a];
-                let pos_b = varied[i_b];
+                let pos_a = positions[i_a];
+                let pos_b = positions[i_b];
                 if let (Some((ax, ay)), Some((bx,by))) = (buf.center_to_xy((pos_a.x,pos_a.y)), buf.center_to_xy((pos_b.x,pos_b.y))) {
                     for (x, y, d) in line_it((ax as i32,ay as i32),(bx as i32,by as i32)) {
                         //println!("{} {}", x, y);
-                        let loc = Vector4::combine(&vec![(d, &varied[i_b]), (1.0 - d, &varied[i_a])]);
+                        let loc = Vector4::combine(&vec![(d, &positions[i_b]), (1.0 - d, &positions[i_a])]);
                         if let Some(val) = fragment(uniform, &V::combine(&vec![(d,&varying[i_b]),(1.0 - d, &varying[i_a])])) {
                             buf.apply(x as usize, y as usize, (val, loc.z));
                         }
@@ -218,16 +224,13 @@ pub fn process<V,U,T,E,F>(buf: &mut Buffer<T>, uniform: &U, varying: &Vec<V>, pa
                 }
             },
             &Patch::Tri(i_a, i_b, i_c) => {
-                // uhg. this is not going to be fun.
-                // rule: points whose centers fall in the tri are rendered.
-                // visible tries move clockwise (counterclockwise cartesian)
-                render_tri(buf, uniform, &[varied[i_a].clone(), varied[i_b].clone(), varied[i_c].clone()], &[&varying[i_a], &varying[i_b], &varying[i_c]], &fragment);
+                render_tri(buf, uniform, &[positions[i_a].clone(), positions[i_b].clone(), positions[i_c].clone()], &[&varying[i_a], &varying[i_b], &varying[i_c]], &fragment);
             }
         }
     }
 }
 
-pub fn render_tri<T, U, V, F>(buf: &mut Buffer<T>, uniform: &U, verts: &[Vector4<f32>; 3], varying: &[&V; 3], fragment: &F) -> ()
+fn render_tri<T, U, V, F>(buf: &mut Buffer<T>, uniform: &U, verts: &[Vector4<f32>; 3], varying: &[&V; 3], fragment: &F) -> ()
     where V:Varying, F: Fn(&U,&V) -> Option<T>
 {
     let mut norms = [Vector2::new(0.0,0.0); 3];
