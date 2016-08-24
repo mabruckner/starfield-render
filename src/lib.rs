@@ -1,7 +1,7 @@
 extern crate nalgebra;
 
 use std::ops::{Add,Mul};
-use nalgebra::{Vector4, Vector2, Norm, dot};
+use nalgebra::{Vector4, Vector3, Vector2, Norm, dot, cross};
 
 // rendering. I think there should be three seperate layers: a raster layer at 2x resolution, a
 // vector layer at 1x resloution, and a text layer at 1x resolution. all should have depth.
@@ -176,18 +176,15 @@ fn to_buffer_coord<T>(buf: &Buffer<T>, coord: &Vector4<f32>) -> Vector2<f32>
     Vector2::new(((coord.x+1.0) * (buf.width as f32) / 2.0) - 0.5, ((coord.y+1.0) * (buf.height as f32) / 2.0) - 0.5)
 }
 
-fn get_interp(target: Vector2<f32>, a: Vector2<f32>, b: Vector2<f32>, c: Vector2<f32>) -> (f32, f32, f32)
+fn get_interp(target: Vector3<f32>, a: Vector3<f32>, b: Vector3<f32>, c: Vector3<f32>) -> (f32, f32, f32)
 {
-    let d_b = b-a;
-    let d_c = c-a;
-    let d = target-a;
-//    let right = Vector2::new(-d_b.y, d_b.x).normalize();
-//    let c_v = 1.0 - dot(&right, &d) / dot(&right, &c);
-//    let b_v = 1.0 - (d - (c_v * d_c)).norm() / (d_b).norm();
-    let denom = d_b.x*d_c.y - d_b.y*d_c.x;
-    let c_v = (d.y*d_b.x - d.x*d_b.y) / denom;
-    let b_v = (d.x*d_c.y - d.y*d_c.x) / denom;
-    (1.0 - c_v - b_v, b_v, c_v)
+    let vecs = [a, b, c];
+    let mut out = [0.0, 0.0, 0.0];
+    for i in 0..3 {
+        let (a, b, c) = (vecs[i], vecs[(i+1)%3], vecs[(i+2)%3]);
+        out[i] = dot(&target, &cross(&b, &c)) / dot(&a, &cross(&b, &c));
+    }
+    (out[0], out[1], out[2])
 }
 
 pub fn process<V,U,T,E,F>(buf: &mut Buffer<T>, uniform: &U, varying: &Vec<V>, patches: &Vec<Patch>, vertex: E, fragment: F) -> ()
@@ -224,62 +221,58 @@ pub fn process<V,U,T,E,F>(buf: &mut Buffer<T>, uniform: &U, varying: &Vec<V>, pa
                 // uhg. this is not going to be fun.
                 // rule: points whose centers fall in the tri are rendered.
                 // visible tries move clockwise (counterclockwise cartesian)
-                let pos_a = to_buffer_coord(&buf, &varied[i_a]);
-                let pos_b = to_buffer_coord(&buf, &varied[i_b]);
-                let pos_c = to_buffer_coord(&buf, &varied[i_c]);
-                // permute
-                let (pos_a, pos_b, pos_c, i_a, i_b, i_c) = if pos_b.x < pos_a.x && pos_b.x < pos_c.x {
-                    (pos_b, pos_c, pos_a, i_b, i_c, i_a)
-                } else if pos_c.x < pos_a.x && pos_c.x < pos_b.x {
-                    (pos_c, pos_a, pos_b, i_c, i_a, i_b)
-                } else {
-                    (pos_a, pos_b, pos_c, i_a, i_b, i_c)
-                };
+                render_tri(buf, uniform, &[varied[i_a].clone(), varied[i_b].clone(), varied[i_c].clone()], &[&varying[i_a], &varying[i_b], &varying[i_c]], &fragment);
+            }
+        }
+    }
+}
 
-                let delta_ab = pos_b - pos_a;
-                let delta_ac = pos_c - pos_a;
-                let w1 = delta_ab.x.min(delta_ac.x);
-                if w1 != 0.0 {
-                    let m1 = delta_ab.y / delta_ab.x;
-                    let m2 = delta_ac.y / delta_ac.x;
-                    if m1 < m2 {
-                        for x in (pos_a.x.ceil().max(0.0) as i32)..((pos_a.x+w1).floor().min(buf.width as f32 -1.0) as i32 + 1) {
-                            let dx = x as f32 - pos_a.x;
-                            for y in ((pos_a.y + m1*dx).ceil().max(0.0) as i32)..((pos_a.y + m2*dx).floor().min(buf.height as f32 -1.0) as i32 + 1) {
-                                let (fa, fb, fc) = get_interp(Vector2::new(x as f32, y as f32), pos_a, pos_b, pos_c);
-                                let combined = V::combine(&vec![(fa, &varying[i_a]), (fb, &varying[i_b]), (fc, &varying[i_c])]);
-                                let loc = Vector4::combine(&vec![(fa, &varied[i_a]), (fb, &varied[i_b]), (fc, &varied[i_c])]);
-                                if let Some(val) = fragment(uniform, &combined) {
-                                    buf.apply(x as usize, y as usize, (val, loc.z));
-                                }
-                            }
-                        }
-                    }
+pub fn render_tri<T, U, V, F>(buf: &mut Buffer<T>, uniform: &U, verts: &[Vector4<f32>; 3], varying: &[&V; 3], fragment: &F) -> ()
+    where V:Varying, F: Fn(&U,&V) -> Option<T>
+{
+    let mut norms = [Vector2::new(0.0,0.0); 3];
+    let mut offsets = [0.0; 3];
+    let mut denom = 0.0;
+    let mut x = 0.0;
+    let mut y = 0.0;
+    for i in 0..3 {
+        let (a,b,c) = (verts[i], verts[(i+1)%3], verts[(i+2)%3]);
+        let t = (b.w*Vector2::new(c.x, c.y) - c.w*Vector2::new(b.x, b.y)).normalize();
+        norms[i] = Vector2::new(t.y, -t.x);
+        offsets[i] = - dot(&norms[i], &(b.w.recip()*Vector2::new(b.x, b.y)));
+        denom += a.w*(c.x*b.y - b.x*c.y);
+        x += a.w*(c.x-b.x);
+        y += a.w*(c.y-b.y);
+    }
+    let vec = Vector2::new(-y/denom, x/denom);
+    let tar = verts.iter().fold(verts[0], |a, b| { if a.z.abs() > b.z.abs() { a } else { b.clone()}});
+    let num = (1.0 - dot(&vec, &Vector2::new(tar.x, tar.y)))/tar.w;
+
+    let (a,b,c) = (
+        Vector3::new(verts[0].x, verts[0].y, verts[0].w),
+        Vector3::new(verts[1].x, verts[1].y, verts[1].w),
+        Vector3::new(verts[2].x, verts[2].y, verts[2].w));
+
+    for xi in 0..buf.width {
+        for yi in 0..buf.height {
+            let (x, y) = ((xi as f32/buf.width as f32), (yi as f32/buf.height as f32));
+            let (x, y) = (x*2.0 -1.0, y*2.0-1.0);
+            let screen = Vector2::new(x,y);
+
+            let mut within = true;
+            for i in 0..3 {
+                if dot(&screen, &norms[i]) + offsets[i] > 0.0 {
+                    within = false;
+                    break;
                 }
-                let (pos_r, pos_top, pos_bot, i_r, i_top, i_bot) = if pos_b.x > pos_c.x {
-                    (pos_b, pos_c, pos_a, i_b, i_c, i_a)
-                } else {
-                    (pos_c, pos_a, pos_b, i_c, i_a, i_b)
-                };
-                let delta_top = pos_r - pos_top;
-                let delta_bot = pos_r - pos_bot;
-                let w2 = delta_top.x.min(delta_bot.x);
-                if w2 != 0.0 {
-                    let mt = delta_top.y / delta_top.x;
-                    let mb = delta_bot.y / delta_bot.x;
-                    if mb > mt {
-                        for x in ((pos_r.x - w2).ceil().max(0.0) as i32)..(pos_r.x.floor().min(buf.width as f32 -1.0) as i32 +1) {
-                            let dx = x as f32 - pos_r.x;
-                            for y in ((pos_r.y + mb*dx).ceil().max(0.0) as i32)..((pos_r.y + mt*dx).floor().min(buf.height as f32 -1.0) as i32 + 1) {
-                                let (fr, fb, ft) = get_interp(Vector2::new(x as f32, y as f32), pos_r, pos_bot, pos_top);
-                                let combined = V::combine(&vec![(fr, &varying[i_r]), (fb, &varying[i_bot]), (ft, &varying[i_top])]);
-                                let loc = Vector4::combine(&vec![(fr, &varied[i_r]), (fb, &varied[i_bot]), (ft, &varied[i_top])]);
-                                if let Some(val) = fragment(uniform, &combined) {
-                                    buf.apply(x as usize, y as usize, (val, loc.z));
-                                }
-                            }
-                        }
-                    }
+            }
+            if within {
+                let val = (dot(&vec, &screen)+num).recip();
+                let pos = Vector3::new(screen.x*val, screen.y*val, val);
+                let interp = get_interp(pos, a, b, c);
+                let varied = V::combine(&vec![(interp.0,varying[0]), (interp.1,varying[1]), (interp.2,varying[2])]);
+                if let Some(v) = fragment(uniform, &varied) {
+                    buf.apply(xi, yi, (v, verts[0].z*interp.0 + verts[1].z*interp.1+ verts[2].z*interp.2));
                 }
             }
         }
