@@ -24,13 +24,18 @@ fn dither(value: f32, x: usize, y: usize) -> bool
 
 pub fn to_256_color(p: &Pixel, x: usize, y: usize) -> usize
 {
-    0xE8 + match p {
+    match p {
         &Pixel::Grayscale(col) => {
             let val = (col * 24.25).max(0.0).min(24.24);
-            if dither_2(((val - val.floor()) * 4.0) as usize, x, y) {
+            let res = 0xE8 + if dither_2(((val - val.floor()) * 4.0) as usize, x, y) {
                 val as usize + 1
             } else {
                 val as usize
+            };
+            if res > 255 {
+                0xf
+            } else {
+                res
             }
         },
         _ => panic!("unimplimented")
