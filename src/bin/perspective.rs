@@ -12,7 +12,7 @@ use nalgebra::{
     Rotation3
 };
 
-fn print_mat(buf: &sf::Buffer<sf::Pixel>)
+fn print_mat(buf: &sf::DepthBuffer<sf::Pixel>)
 {
     for y in 0..buf.height {
         for x in 0..buf.width {
@@ -39,7 +39,7 @@ fn main()
     
     let patches = vec![sf::Patch::Tri(0,1,2), sf::Patch::Tri(3,2,1), sf::Patch::Tri(2,1,0), sf::Patch::Tri(1,2,3)];
 
-    let mut buffer = sf::Buffer::new(width,height);
+    let mut buffer = sf::Buffer::new(width,height,None);
 
     let vertex = |u: &f32, v: &Vector2<f32>| {
         let p = Rotation3::new(Vector3::new(0.0, *u, 0.0)).rotate(&Vector3::new(v.x, v.y, 0.0));

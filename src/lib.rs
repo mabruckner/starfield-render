@@ -6,6 +6,7 @@ use nalgebra::{Vector4, Vector3, Vector2, Norm, dot, cross};
 // rendering. I think there should be three seperate layers: a raster layer at 2x resolution, a
 // vector layer at 1x resloution, and a text layer at 1x resolution. all should have depth.
 
+#[derive(Copy, Clone, Debug)]
 pub enum Pixel
 {
     Color(f32, f32, f32),
@@ -63,7 +64,7 @@ pub struct Buffer<T>
 {
     pub width: usize,
     pub height: usize,
-    buf: Vec<Option<(T,f32)>>
+    buf: Vec<T>
 }
 
 fn distribute(size: usize, pos: f32) -> i32
@@ -71,13 +72,13 @@ fn distribute(size: usize, pos: f32) -> i32
     ((pos * size as f32) + 1.0) as i32 - 1
 }
 
-impl <T> Buffer<T>
+impl <T: Copy> Buffer<T>
 {
-    pub fn new(width: usize, height: usize) -> Buffer<T>
+    pub fn new(width: usize, height: usize, val: T) -> Buffer<T>
     {
         let mut buf = Vec::with_capacity(width*height);
         for i in 0..(width*height) {
-            buf.push(None);
+            buf.push(val);
         }
         Buffer {
             width: width,
@@ -85,20 +86,24 @@ impl <T> Buffer<T>
             buf: buf
         }
     }
+    pub fn fill(&mut self, val: T) -> ()
+    {
+        for i in 0..self.buf.len() {
+            self.buf[i] = val;
+        }
+    }
+}
+
+impl <T> Buffer<T>
+{
     fn get_index(&self, x: usize, y: usize) -> usize
     {
         self.width * y + x
     }
-    pub fn apply(&mut self, x: usize, y:usize , (val, depth): (T, f32)) -> ()
+    pub fn set(&mut self, x: usize, y:usize , val: T) -> ()
     {
         let index = self.get_index(x, y);
-        if let Some((_, d)) = self.buf[index] {
-            if depth > d {
-                self.buf[index] = Some((val, depth));
-            }
-        } else {
-            self.buf[index] = Some((val, depth));
-        }
+        self.buf[index] = val;
     }
     fn ratio_to_xy(&self, (x, y): (f32, f32)) -> Option<(usize, usize)>
     {
@@ -114,9 +119,26 @@ impl <T> Buffer<T>
     {
         self.ratio_to_xy(((x+1.0)/2.0, (y+1.0)/2.0))
     }
-    pub fn get(&self, (x, y): (usize, usize)) -> &Option<(T, f32)>
+    pub fn get(&self, (x, y): (usize, usize)) -> &T
     {
         &self.buf[self.get_index(x, y)]
+    }
+}
+
+pub type DepthBuffer<T> = Buffer<Option<(T, f32)>>;
+
+impl <T> DepthBuffer<T>
+{
+    pub fn apply(&mut self, x: usize, y:usize , (val, depth): (T, f32)) -> ()
+    {
+        let index = self.get_index(x, y);
+        if let Some((_, d)) = self.buf[index] {
+            if depth > d {
+                self.buf[index] = Some((val, depth));
+            }
+        } else {
+            self.buf[index] = Some((val, depth));
+        }
     }
     pub fn clear(&mut self) -> ()
     {
@@ -192,7 +214,7 @@ fn get_interp(target: Vector3<f32>, a: Vector3<f32>, b: Vector3<f32>, c: Vector3
     (out[0], out[1], out[2])
 }
 
-pub fn process<V,I,U,T,E,F>(buf: &mut Buffer<T>, uniform: &U, varying: &Vec<V>, patches: &Vec<Patch>, vertex: E, fragment: F) -> ()
+pub fn process<V,I,U,T,E,F>(buf: &mut DepthBuffer<T>, uniform: &U, varying: &Vec<V>, patches: &Vec<Patch>, vertex: E, fragment: F) -> ()
     where I:Varying, E: Fn(&U,&V) -> (Vector4<f32>, I), F: Fn(&U,&I) -> Option<T>
 {
     let mut varied = Vec::new();
@@ -205,7 +227,7 @@ pub fn process<V,I,U,T,E,F>(buf: &mut Buffer<T>, uniform: &U, varying: &Vec<V>, 
     render(buf, uniform, &pos, &varied, patches, fragment) 
 }
 
-pub fn render<V,U,T,F>(buf: &mut Buffer<T>, uniform: &U, positions: &Vec<Vector4<f32>>, varying: &Vec<V>, patches: &Vec<Patch>, fragment: F) -> ()
+pub fn render<V,U,T,F>(buf: &mut DepthBuffer<T>, uniform: &U, positions: &Vec<Vector4<f32>>, varying: &Vec<V>, patches: &Vec<Patch>, fragment: F) -> ()
     where V:Varying, F: Fn(&U, &V) -> Option<T>
 {
     for patch in patches {
@@ -238,7 +260,7 @@ pub fn render<V,U,T,F>(buf: &mut Buffer<T>, uniform: &U, positions: &Vec<Vector4
     }
 }
 
-fn render_tri<T, U, V, F>(buf: &mut Buffer<T>, uniform: &U, verts: &[Vector4<f32>; 3], varying: &[&V; 3], fragment: &F) -> ()
+fn render_tri<T, U, V, F>(buf: &mut DepthBuffer<T>, uniform: &U, verts: &[Vector4<f32>; 3], varying: &[&V; 3], fragment: &F) -> ()
     where V:Varying, F: Fn(&U,&V) -> Option<T>
 {
     let mut norms = [Vector2::new(0.0,0.0); 3];

@@ -12,7 +12,7 @@ use nalgebra::{
     Rotation3
 };
 
-fn print_buffer(buf: &sf::Buffer<char>) -> ()
+fn print_buffer(buf: &sf::DepthBuffer<char>) -> ()
 {
     for y in 0..buf.height {
         for x in 0..buf.width {
@@ -51,7 +51,7 @@ fn main() -> ()
     let reversed = tris[0].reverse();
     tris.push(reversed);
 
-    let mut buffer = sf::Buffer::new(width, height);
+    let mut buffer = sf::Buffer::new(width, height, None);
 
     let vertex = |u: &f32, v: &Vector4<f32>| {
         (Vector4::new(v.x * u.cos() + v.z* u.sin(), v.y, v.z * u.cos() - v.x* u.sin(), 1.0), 0.0)
