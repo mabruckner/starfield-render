@@ -16,7 +16,7 @@ fn print_buffer(buf: &sf::DepthBuffer<char>) -> ()
 {
     for y in 0..buf.height {
         for x in 0..buf.width {
-            if let &Some((c, _)) = buf.get((x,y)) {
+            if let &Some((c, _)) = buf.get(x,y) {
                 print!("{}", c);
             } else {
                 print!(" ");

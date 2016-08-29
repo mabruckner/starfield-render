@@ -3,14 +3,52 @@ extern crate nalgebra;
 use std::ops::{Add,Mul};
 use nalgebra::{Vector4, Vector3, Vector2, Norm, dot, cross};
 
-// rendering. I think there should be three seperate layers: a raster layer at 2x resolution, a
-// vector layer at 1x resloution, and a text layer at 1x resolution. all should have depth.
-
 #[derive(Copy, Clone, Debug)]
 pub enum Pixel
 {
     Color(f32, f32, f32),
     Grayscale(f32)
+}
+
+pub struct ColorChar(u8, u8, char);
+
+pub fn make_colorstring<'a, I>(it: I) -> String
+    where I: Iterator<Item = &'a ColorChar>
+{
+    let mut st = String::new();
+    let mut pfg = None;
+    let mut pbg = None;
+    for &ColorChar(fg, bg, ch) in it {
+        if pfg != Some(fg) {
+            st.push_str(&format!("\x1B[38;5;{}m", fg));
+            pfg = Some(fg);
+        }
+        if pbg != Some(bg) {
+            st.push_str(&format!("\x1B[48;5;{}m", bg));
+            pbg = Some(bg);
+        }
+        st.push(ch);
+    }
+    st
+}
+
+pub struct Rect{
+    pub x: usize,
+    pub y: usize,
+    pub w: usize,
+    pub h: usize
+}
+
+fn raster_to_char(ch: &mut Buffer<ColorChar>, buf: &DepthBuffer<Pixel>)
+{
+    for y in 0..buf.height {
+        for x in 0..buf.width {
+            ch.set(x, y, ColorChar(7, match buf.get(x, y) {
+                &Some((ref val, _)) => to_256_color(val, x, y) as u8,
+                &None => 0
+            }, ' '));
+        }
+    }
 }
 
 fn dither_2(val: usize, x: usize, y: usize) -> bool
@@ -105,7 +143,7 @@ impl <T> Buffer<T>
         let index = self.get_index(x, y);
         self.buf[index] = val;
     }
-    fn ratio_to_xy(&self, (x, y): (f32, f32)) -> Option<(usize, usize)>
+    fn ratio_to_xy(&self, x: f32, y: f32) -> Option<(usize, usize)>
     {
         let ix = distribute(self.width, x);
         let iy = distribute(self.height, y);
@@ -115,13 +153,26 @@ impl <T> Buffer<T>
             None
         }
     }
-    fn center_to_xy(&self, (x, y): (f32, f32)) -> Option<(usize, usize)>
+    fn center_to_xy(&self, x: f32, y: f32) -> Option<(usize, usize)>
     {
-        self.ratio_to_xy(((x+1.0)/2.0, (y+1.0)/2.0))
+        self.ratio_to_xy((x+1.0)/2.0, (y+1.0)/2.0)
     }
-    pub fn get(&self, (x, y): (usize, usize)) -> &T
+    pub fn get(&self, x: usize, y: usize) -> &T
     {
         &self.buf[self.get_index(x, y)]
+    }
+    pub fn row_iter<'a>(&'a self, y: usize) -> std::slice::Iter<'a, T>
+    {
+        self.buf[y*self.width .. (y+1*self.width)].iter()
+    }
+    pub fn get_rect(&self) -> Rect
+    {
+        Rect{
+            x: 0,
+            y: 0,
+            w: self.width,
+            h: self.height
+        }
     }
 }
 
@@ -234,7 +285,7 @@ pub fn render<V,U,T,F>(buf: &mut DepthBuffer<T>, uniform: &U, positions: &Vec<Ve
         match patch {
             &Patch::Point(index) => {
                 let pos = positions[index];
-                if let Some((x, y)) = buf.center_to_xy((pos.x, pos.y)) {
+                if let Some((x, y)) = buf.center_to_xy(pos.x, pos.y) {
                     if let Some(val) = fragment(uniform, &varying[index]) {
                         buf.apply(x, y, (val, positions[index].z));
                     }
@@ -243,7 +294,7 @@ pub fn render<V,U,T,F>(buf: &mut DepthBuffer<T>, uniform: &U, positions: &Vec<Ve
             &Patch::Line(i_a, i_b) => {
                 let pos_a = positions[i_a];
                 let pos_b = positions[i_b];
-                if let (Some((ax, ay)), Some((bx,by))) = (buf.center_to_xy((pos_a.x,pos_a.y)), buf.center_to_xy((pos_b.x,pos_b.y))) {
+                if let (Some((ax, ay)), Some((bx,by))) = (buf.center_to_xy(pos_a.x,pos_a.y), buf.center_to_xy(pos_b.x,pos_b.y)) {
                     for (x, y, d) in line_it((ax as i32,ay as i32),(bx as i32,by as i32)) {
                         //println!("{} {}", x, y);
                         let loc = Vector4::combine(&vec![(d, &positions[i_b]), (1.0 - d, &positions[i_a])]);

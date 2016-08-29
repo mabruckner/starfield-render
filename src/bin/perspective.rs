@@ -16,7 +16,7 @@ fn print_mat(buf: &sf::DepthBuffer<sf::Pixel>)
 {
     for y in 0..buf.height {
         for x in 0..buf.width {
-            match buf.get((x,y)) {
+            match buf.get(x,y) {
                 &Some((ref col, _)) => print!("\x1B[48;5;{}m ", sf::to_256_color(col, x, y)),
                 &None => print!("\x1B[48;5;0m ")
             }
