@@ -14,14 +14,13 @@ use nalgebra::{
 
 fn print_mat(buf: &sf::DepthBuffer<sf::Pixel>)
 {
-    for y in 0..buf.height {
-        for x in 0..buf.width {
-            match buf.get(x,y) {
-                &Some((ref col, _)) => print!("\x1B[48;5;{}m ", sf::to_256_color(col, x, y)),
-                &None => print!("\x1B[48;5;0m ")
-            }
-        }
-        println!("");
+    for y in (0..buf.height).rev() {
+        println!("{}", sf::make_colorstring(buf.row_iter(y).enumerate().map(|(x, p)| {
+            sf::ColorChar(7, match p {
+                &Some((ref val, _)) => sf::to_256_color(val, x, y),
+                _ => 0
+            }, ' ')
+        })));
     }
 }
 
