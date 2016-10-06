@@ -8,11 +8,11 @@ use nalgebra::{
     Vector2
 };
 
-fn print_mat(buf: &sf::Buffer<sf::Pixel>)
+fn print_mat(buf: &sf::DepthBuffer<sf::Pixel>)
 {
     for y in 0..buf.height {
         for x in 0..buf.width {
-            match buf.get((x,y)) {
+            match buf.get(x,y) {
                 &Some((ref col, _)) => print!("\x1B[48;5;{}m ", sf::to_256_color(col, x, y)),
                 &None => print!("\x1B[48;5;0m ")
             }
@@ -30,7 +30,7 @@ fn main()
     let verts = vec![Vector2::new(-1.0, -1.0), Vector2::new(1.0, -1.0), Vector2::new(-1.0, 1.0), Vector2::new(1.0, 1.0)];
     let faces = vec![sf::Patch::Tri(0,1,2), sf::Patch::Tri(2,1,3)];
 
-    let mut buffer = sf::Buffer::new(width,height);
+    let mut buffer = sf::Buffer::new(width,height,None);
 
     let vertex = |u: &f32, v: &Vector2<f32>| {
         (Vector4::new(v.x, v.y, 0.0, 1.0), v.clone())
