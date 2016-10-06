@@ -14,6 +14,8 @@ pub struct Buffer<T>
     buf: Vec<T>
 }
 
+
+
 fn distribute(size: usize, pos: f32) -> i32
 {
     ((pos * size as f32) + 1.0) as i32 - 1
