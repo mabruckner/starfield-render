@@ -50,6 +50,6 @@ impl GridPrint for Buffer<ColorChar>
     }
 
     fn get_cell(&self, x:usize, y:usize) -> ColorChar {
-        self.get(x,y).clone()
+        self.get(x, self.height-y-1).clone()
     }
 }
